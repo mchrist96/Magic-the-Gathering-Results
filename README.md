@@ -2,6 +2,8 @@
 
 Commander pod game tracking for Mitchell, Eric, Hunter, and Harrison.
 
+**📊 Live dashboard: https://mchrist96.github.io/Magic-the-Gathering-Results/** — charts update automatically from the data on every push. Deck art can be added in [images/decks/](images/decks/) (see its README for filenames).
+
 ## How to record a game
 
 1. Add a row to [data/2026_mtg_tracker.csv](data/2026_mtg_tracker.csv) with the game number, each player's placement (1–4, ties allowed) and deck, plus any notes. Leave a player's placement blank if they sat out.
