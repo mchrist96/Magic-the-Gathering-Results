@@ -25,9 +25,9 @@ Expected filenames:
 | Harrison | Doctor Doom, King of Latveria | `doctor-doom-king-of-latveria.png` |
 | Harrison | Dr. Eggman | `dr-eggman.png` |
 | Harrison | Gimbal, Gremlin Prodigy | `gimbal-gremlin-prodigy.png` |
-| Harrison | Krenko, Mob Boss | `krenko-mob-boss-png` |
+| Harrison | Krenko, Mob Boss | `krenko-mob-boss.png` |
 | Harrison | Leonardo, the Balance & Michelangelo, the Heart | `leonardo-the-balance-michelangelo-the-heart.png` |
-| Harrison | Sauran, the Dark Lord | `sauran-the-dark-lord.png` |
+| Harrison | Sauron, the Dark Lord | `sauron-the-dark-lord.png` |
 | Harrison | Shiko and Narset, Unified | `shiko-and-narset-unified.png` |
 | Harrison | Sliver Gravemother | `sliver-gravemother.png` |
 | Harrison | Sonic the Hedgehog | `sonic-the-hedgehog.png` |

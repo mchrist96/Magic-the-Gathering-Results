@@ -96,7 +96,7 @@
     background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
     overflow: hidden; display: flex; flex-direction: column;
   }
-  .deck-card .art { aspect-ratio: 5 / 4; width: 100%; object-fit: cover; display: block; background: var(--grid); }
+  .deck-card .art { aspect-ratio: 5 / 4; width: 100%; object-fit: cover; object-position: top; display: block; background: var(--grid); }
   .deck-card .art-fallback {
     aspect-ratio: 5 / 4; display: flex; align-items: center; justify-content: center;
     font-size: 34px; font-weight: 700; color: var(--surface-1);
@@ -453,14 +453,16 @@ function deckChart(stats) {
 
 // ---------- non-chart sections ----------
 function tiles(stats) {
-  document.getElementById("tiles").innerHTML = PLAYERS.map(p => {
+  document.getElementById("tiles").innerHTML = [...PLAYERS]
+    .sort((a, b) => stats.players[b].wins - stats.players[a].wins).map(p => {
     const ps = stats.players[p];
     const avg = ps.games ? (ps.placeSum / ps.games).toFixed(2) : "–";
-    const rate = ps.games ? (ps.wins / ps.games * 100).toFixed(0) : 0;
     return `<div class="tile">
       <div class="who"><span class="dot" style="background:${playerColor(p)}"></span>${p}</div>
-      <div class="big">${ps.wins} <small>wins · ${rate}%</small></div>
-      <div class="sub">avg placement ${avg} · ${ps.decksPlayed.size} decks · ${ps.games} games</div>
+      <div class="big">${ps.wins} <small>wins</small></div>
+      <div class="sub">avg placement ${avg}</div>
+      <div class="sub">${ps.decksPlayed.size} unique decks played</div>
+      <div class="sub">${ps.games} games played</div>
     </div>`;
   }).join("");
 }
