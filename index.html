@@ -95,6 +95,14 @@
   th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--grid); }
   th { color: var(--text-secondary); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: 6px; margin: -4px 0 10px; border-bottom: 1px solid var(--grid); padding-bottom: 10px; }
+  .tab-btn {
+    appearance: none; background: none; border: none; font: inherit; cursor: pointer;
+    padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 13.5px;
+    color: var(--text-muted);
+  }
+  .tab-btn:hover { color: var(--text-secondary); }
+  .tab-btn.active { background: var(--grid); color: var(--text-primary); }
   .deck-cell { display: inline-flex; align-items: center; gap: 14px; font-weight: 600; }
   .thumb, .thumb-fallback {
     width: 120px; height: 92px; border-radius: 8px; flex: none; background: var(--grid);
@@ -134,15 +142,18 @@
     </div>
 
     <div class="card">
-      <h2>Full deck list</h2>
-      <p class="sub">Every deck's record, sorted by average placement</p>
-      <div class="scroll-x"><table id="deck-table"></table></div>
-    </div>
-
-    <div class="card">
-      <h2>Win rate leaderboard</h2>
-      <p class="sub">Every deck's record, sorted by win rate, then wins, then fewest games</p>
-      <div class="scroll-x"><table id="deck-table-winrate"></table></div>
+      <div class="tabs" id="deck-tabs">
+        <button class="tab-btn active" data-pane="pane-avg">Avg placement leaderboard</button>
+        <button class="tab-btn" data-pane="pane-winrate">Win rate leaderboard</button>
+      </div>
+      <div id="pane-avg">
+        <p class="sub">Every deck's record, sorted by average placement</p>
+        <div class="scroll-x"><table id="deck-table"></table></div>
+      </div>
+      <div id="pane-winrate" hidden>
+        <p class="sub">Every deck's record, sorted by win rate, then wins, then fewest games</p>
+        <div class="scroll-x"><table id="deck-table-winrate"></table></div>
+      </div>
     </div>
   </div>
 </div>
@@ -418,6 +429,14 @@ function deckTables(stats) {
     (b.winRate ?? -1) - (a.winRate ?? -1) || b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name));
   renderDeckTable("deck-table-winrate", byWinRate);
 }
+
+document.querySelectorAll("#deck-tabs .tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#deck-tabs .tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+    document.getElementById("pane-avg").hidden = btn.dataset.pane !== "pane-avg";
+    document.getElementById("pane-winrate").hidden = btn.dataset.pane !== "pane-winrate";
+  });
+});
 
 // ---------- boot ----------
 let statsCache = null;
