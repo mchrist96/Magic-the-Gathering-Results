@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTG Pod Results</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:        #f9f9f7;
+    --surface-1:   #fcfcfb;
+    --text-primary:#0b0b0b;
+    --text-secondary:#52514e;
+    --text-muted:  #898781;
+    --grid:        #e1e0d9;
+    --baseline:    #c3c2b7;
+    --border:      rgba(11,11,11,0.10);
+    --mitchell:    #2a78d6;
+    --eric:        #eb6834;
+    --hunter:      #1baf7a;
+    --harrison:    #eda100;
+    --div-pos:     #2a78d6;
+    --div-neg:     #e34948;
+    --ord-1: #184f95; --ord-2: #2a78d6; --ord-3: #5598e7; --ord-4: #86b6ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:        #0d0d0d;
+      --surface-1:   #1a1a19;
+      --text-primary:#ffffff;
+      --text-secondary:#c3c2b7;
+      --text-muted:  #898781;
+      --grid:        #2c2c2a;
+      --baseline:    #383835;
+      --border:      rgba(255,255,255,0.10);
+      --mitchell:    #3987e5;
+      --eric:        #d95926;
+      --hunter:      #199e70;
+      --harrison:    #c98500;
+      --div-pos:     #3987e5;
+      --div-neg:     #e66767;
+      --ord-1: #b7d3f6; --ord-2: #6da7ec; --ord-3: #2a78d6; --ord-4: #184f95;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 32px 20px 64px; }
+  header h1 { font-size: 26px; margin: 0 0 4px; }
+  header p { margin: 0 0 28px; color: var(--text-secondary); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .tile .who { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-weight: 600; }
+  .tile .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .tile .big { font-size: 30px; font-weight: 600; margin: 2px 0 0; }
+  .tile .big small { font-size: 14px; font-weight: 400; color: var(--text-muted); }
+  .tile .sub { color: var(--text-muted); font-size: 12.5px; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px 14px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 2px; }
+  .card .sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 780px) { .grid2 { grid-template-columns: 1fr; } }
+  .chart { position: relative; }
+  svg text { font-family: inherit; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    padding: 8px 11px; font-size: 12.5px; max-width: 300px;
+  }
+  #tooltip .t-title { font-weight: 600; margin-bottom: 2px; }
+  #tooltip .t-row { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  #tooltip .t-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .deck-card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .deck-card .art { aspect-ratio: 5 / 4; width: 100%; object-fit: cover; display: block; background: var(--grid); }
+  .deck-card .art-fallback {
+    aspect-ratio: 5 / 4; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; font-weight: 700; color: var(--surface-1);
+  }
+  .deck-card .meta { padding: 9px 12px 11px; }
+  .deck-card .name { font-weight: 600; font-size: 13px; line-height: 1.3; }
+  .deck-card .rec { color: var(--text-muted); font-size: 12px; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .deck-card .rec .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); }
+  th { color: var(--text-secondary); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .owner-cell { display: inline-flex; align-items: center; gap: 6px; }
+  .owner-cell .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .scroll-x { overflow-x: auto; }
+  #status { color: var(--text-muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>MTG Pod Results</h1>
+    <p id="subtitle">Commander pod tracking &mdash; loading&hellip;</p>
+  </header>
+  <div id="status">Loading results&hellip;</div>
+  <div id="app" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="card">
+      <h2>Race for wins</h2>
+      <p class="sub">Cumulative wins by game (ties can crown more than one winner)</p>
+      <div class="legend" id="legend-race"></div>
+      <div class="chart" id="chart-race"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Wins vs last places</h2>
+        <p class="sub">Games won (right) against games finished last (left)</p>
+        <div class="chart" id="chart-winlast"></div>
+      </div>
+      <div class="card">
+        <h2>Placement mix</h2>
+        <p class="sub">Share of each player's games by finish</p>
+        <div class="legend" id="legend-mix"></div>
+        <div class="chart" id="chart-mix"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Deck standings</h2>
+      <p class="sub">Win rate for decks with 5+ games, colored by owner</p>
+      <div class="legend" id="legend-decks"></div>
+      <div class="chart" id="chart-decks"></div>
+    </div>
+
+    <div class="card">
+      <h2>The decks</h2>
+      <p class="sub">Every deck in the pod &mdash; add art in <code>images/decks/</code></p>
+      <div class="gallery" id="gallery"></div>
+    </div>
+
+    <div class="card">
+      <h2>Full deck list</h2>
+      <p class="sub">Every deck's record, sorted by average placement</p>
+      <div class="scroll-x"><table id="deck-table"></table></div>
+    </div>
+  </div>
+</div>
+<div id="tooltip"></div>
+
+<script>
+"use strict";
+const PLAYERS = ["Mitchell", "Eric", "Hunter", "Harrison"];
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const playerColor = p => css("--" + p.toLowerCase());
+
+// ---------- CSV ----------
+function parseCSV(text) {
+  const rows = [[]]; let field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { rows[rows.length-1].push(field); field = ""; }
+    else if (c === '\n') { rows[rows.length-1].push(field); field = ""; rows.push([]); }
+    else if (c !== '\r') field += c;
+  }
+  rows[rows.length-1].push(field);
+  if (rows[rows.length-1].every(v => v === "")) rows.pop();
+  const header = rows.shift();
+  return rows.map(r => Object.fromEntries(header.map((h, i) => [h, (r[i] || "").trim()])));
+}
+
+// ---------- stats (mirrors scripts/update_stats.py) ----------
+function computeStats(games, ownerRows) {
+  const owners = {};
+  ownerRows.forEach(r => { if (r.Deck) owners[r.Deck] = r.Owner; });
+  const decks = {}, players = {};
+  PLAYERS.forEach(p => players[p] = { games: 0, wins: 0, lasts: 0, placeSum: 0,
+    decksPlayed: new Set(), placeCounts: [0,0,0,0], winTimeline: [] });
+  let gameCount = 0;
+  for (const row of games) {
+    const results = [];
+    for (const p of PLAYERS) {
+      const pl = row[p + " Placement"];
+      if (pl) results.push([p, Math.round(parseFloat(pl)), row[p + " Deck"]]);
+    }
+    if (!results.length) continue;
+    gameCount++;
+    const worst = Math.max(...results.map(r => r[1]));
+    const winnersThisGame = new Set(results.filter(r => r[1] === 1).map(r => r[0]));
+    for (const p of PLAYERS) {
+      const ps = players[p];
+      ps.winTimeline.push((ps.winTimeline.at(-1) || 0) + (winnersThisGame.has(p) ? 1 : 0));
+    }
+    for (const [p, pl, deck] of results) {
+      const ps = players[p];
+      ps.games++; ps.placeSum += pl;
+      if (pl === 1) ps.wins++;
+      if (pl === worst) ps.lasts++;
+      if (pl >= 1 && pl <= 4) ps.placeCounts[pl-1]++;
+      if (deck) {
+        ps.decksPlayed.add(deck);
+        const d = decks[deck] || (decks[deck] = { games: 0, wins: 0, lasts: 0, placeSum: 0, pilots: {} });
+        d.games++; d.placeSum += pl;
+        if (pl === 1) d.wins++;
+        if (pl === worst) d.lasts++;
+        d.pilots[p] = (d.pilots[p] || 0) + 1;
+      }
+    }
+  }
+  const deckRows = Object.entries(decks).map(([name, d]) => ({
+    name,
+    owner: owners[name] || Object.entries(d.pilots).sort((a,b)=>b[1]-a[1])[0][0],
+    games: d.games, wins: d.wins, lasts: d.lasts,
+    winRate: d.wins / d.games, avg: d.placeSum / d.games,
+  }));
+  for (const [name, owner] of Object.entries(owners))
+    if (!decks[name]) deckRows.push({ name, owner, games: 0, wins: 0, lasts: 0, winRate: null, avg: null });
+  deckRows.sort((a,b) => (a.avg ?? 9) - (b.avg ?? 9) || b.games - a.games || a.name.localeCompare(b.name));
+  return { gameCount, players, deckRows };
+}
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tooltip");
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- svg helpers ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, parent) {
+  const n = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function svgIn(container, w, h) {
+  container.innerHTML = "";
+  const s = el("svg", { width: "100%", height: h, viewBox: `0 0 ${w} ${h}` });
+  container.appendChild(s);
+  return s;
+}
+// bar with 4px rounded data-end, square baseline (horizontal, growing right)
+function barPathH(x, y, len, thick, r) {
+  r = Math.min(r, Math.max(0, len), thick / 2);
+  return `M${x},${y} h${len - r} a${r},${r} 0 0 1 ${r},${r} v${thick - 2*r} a${r},${r} 0 0 1 ${-r},${r} h${-(len - r)} z`;
+}
+function legend(id, items) {
+  document.getElementById(id).innerHTML = items.map(([label, color]) =>
+    `<span class="key"><span class="sw" style="background:${color}"></span>${label}</span>`).join("");
+}
+
+// ---------- charts ----------
+function raceChart(stats) {
+  const box = document.getElementById("chart-race");
+  const W = Math.max(320, box.clientWidth), H = 260;
+  const m = { t: 12, r: 90, b: 28, l: 34 };
+  const n = stats.gameCount;
+  const maxWins = Math.max(1, ...PLAYERS.map(p => stats.players[p].winTimeline.at(-1) || 0));
+  const s = svgIn(box, W, H);
+  const px = g => m.l + (g - 1) / Math.max(1, n - 1) * (W - m.l - m.r);
+  const py = v => H - m.b - v / maxWins * (H - m.t - m.b);
+  for (let v = 0; v <= maxWins; v += Math.ceil(maxWins / 5)) {
+    el("line", { x1: m.l, x2: W - m.r, y1: py(v), y2: py(v), stroke: css("--grid"), "stroke-width": 1 }, s);
+    el("text", { x: m.l - 8, y: py(v) + 4, "text-anchor": "end", "font-size": 11,
+      fill: css("--text-muted"), "font-variant-numeric": "tabular-nums" }, s).textContent = v;
+  }
+  el("line", { x1: m.l, x2: W - m.r, y1: py(0), y2: py(0), stroke: css("--baseline"), "stroke-width": 1 }, s);
+  [1, Math.ceil(n/2), n].forEach(g => {
+    el("text", { x: px(g), y: H - 8, "text-anchor": "middle", "font-size": 11, fill: css("--text-muted") }, s)
+      .textContent = "Game " + g;
+  });
+  // end labels with collision-avoiding nudge, then leader lines if moved far
+  const ends = PLAYERS.map(p => ({ p, y: py(stats.players[p].winTimeline.at(-1) || 0) }))
+    .sort((a, b) => a.y - b.y);
+  let prev = -Infinity;
+  ends.forEach(e => { e.ly = Math.max(e.y, prev + 15); prev = e.ly; });
+  for (const p of PLAYERS) {
+    const tl = stats.players[p].winTimeline, color = playerColor(p);
+    const d = tl.map((v, i) => (i ? "L" : "M") + px(i + 1) + "," + py(v)).join("");
+    el("path", { d, fill: "none", stroke: color, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" }, s);
+    const e = ends.find(x => x.p === p);
+    el("circle", { cx: px(n), cy: e.y, r: 4.5, fill: color, stroke: css("--surface-1"), "stroke-width": 2 }, s);
+    if (Math.abs(e.ly - e.y) > 6)
+      el("line", { x1: px(n) + 6, y1: e.y, x2: px(n) + 16, y2: e.ly, stroke: css("--grid"), "stroke-width": 1 }, s);
+    const t = el("text", { x: px(n) + 19, y: e.ly + 4, "font-size": 12, fill: css("--text-secondary") }, s);
+    t.textContent = `${p} · ${tl.at(-1)}`;
+  }
+  // hover crosshair
+  const hover = el("g", { style: "display:none" }, s);
+  const vline = el("line", { y1: m.t, y2: H - m.b, stroke: css("--baseline"), "stroke-width": 1 }, hover);
+  const dots = PLAYERS.map(p => el("circle", { r: 4.5, fill: playerColor(p),
+    stroke: css("--surface-1"), "stroke-width": 2 }, hover));
+  const cap = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, s);
+  cap.addEventListener("mousemove", ev => {
+    const rect = s.getBoundingClientRect();
+    const xpx = (ev.clientX - rect.left) * (W / rect.width);
+    const g = Math.max(1, Math.min(n, Math.round(1 + (xpx - m.l) / (W - m.l - m.r) * (n - 1))));
+    hover.style.display = "";
+    vline.setAttribute("x1", px(g)); vline.setAttribute("x2", px(g));
+    PLAYERS.forEach((p, i) => {
+      dots[i].setAttribute("cx", px(g));
+      dots[i].setAttribute("cy", py(stats.players[p].winTimeline[g-1]));
+    });
+    showTip(`<div class="t-title">Game ${g}</div>` + PLAYERS.map(p =>
+      `<div class="t-row"><span class="sw" style="background:${playerColor(p)}"></span>${p}: ${stats.players[p].winTimeline[g-1]} wins</div>`).join(""), ev);
+  });
+  cap.addEventListener("mouseleave", () => { hover.style.display = "none"; hideTip(); });
+}
+
+function winLastChart(stats) {
+  const box = document.getElementById("chart-winlast");
+  const W = Math.max(300, box.clientWidth), H = 190;
+  const m = { t: 8, r: 40, b: 26, l: 78 };
+  const maxV = Math.max(...PLAYERS.flatMap(p => [stats.players[p].wins, stats.players[p].lasts]), 1);
+  const s = svgIn(box, W, H);
+  const cx = m.l + (W - m.l - m.r) / 2;
+  const px = v => v / maxV * ((W - m.l - m.r) / 2);
+  const band = (H - m.t - m.b) / PLAYERS.length;
+  const thick = Math.min(24, band - 12);
+  el("line", { x1: cx, x2: cx, y1: m.t, y2: H - m.b, stroke: css("--baseline"), "stroke-width": 1 }, s);
+  PLAYERS.forEach((p, i) => {
+    const ps = stats.players[p];
+    const y = m.t + i * band + (band - thick) / 2;
+    el("text", { x: m.l - 10, y: y + thick/2 + 4, "text-anchor": "end", "font-size": 12.5,
+      fill: css("--text-secondary") }, s).textContent = p;
+    const wLen = px(ps.wins), lLen = px(ps.lasts);
+    el("path", { d: barPathH(cx + 1, y, wLen, thick, 4), fill: css("--div-pos") }, s);
+    el("path", { d: barPathH(0, 0, lLen, thick, 4), fill: css("--div-neg"),
+      transform: `translate(${cx - 1},${y}) scale(-1,1)` }, s);
+    if (wLen > 18) el("text", { x: cx + 1 + wLen + 6, y: y + thick/2 + 4, "font-size": 12,
+      fill: css("--text-secondary"), "font-variant-numeric": "tabular-nums" }, s).textContent = ps.wins;
+    if (lLen > 26) {
+      // outside the bar end unless that would collide with the name column
+      const outside = cx - 1 - lLen - 6 >= m.l + 24;
+      el("text", { x: outside ? cx - 1 - lLen - 6 : cx - 1 - lLen + 7,
+        y: y + thick/2 + 4, "text-anchor": outside ? "end" : "start", "font-size": 12,
+        fill: outside ? css("--text-secondary") : css("--surface-1"),
+        "font-variant-numeric": "tabular-nums" }, s).textContent = ps.lasts;
+    }
+    const hit = el("rect", { x: m.l, y: m.t + i * band, width: W - m.l - m.r, height: band, fill: "transparent" }, s);
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="t-title">${p}</div>` +
+      `<div class="t-row"><span class="sw" style="background:${css("--div-pos")}"></span>Wins: ${ps.wins} (${(ps.wins/ps.games*100).toFixed(0)}%)</div>` +
+      `<div class="t-row"><span class="sw" style="background:${css("--div-neg")}"></span>Last places: ${ps.lasts} (${(ps.lasts/ps.games*100).toFixed(0)}%)</div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+  });
+  el("text", { x: cx - 6, y: H - 8, "text-anchor": "end", "font-size": 11, fill: css("--text-muted") }, s)
+    .textContent = "← last places";
+  el("text", { x: cx + 6, y: H - 8, "font-size": 11, fill: css("--text-muted") }, s)
+    .textContent = "wins →";
+}
+
+function mixChart(stats) {
+  const box = document.getElementById("chart-mix");
+  const W = Math.max(300, box.clientWidth), H = 190;
+  const m = { t: 8, r: 14, b: 8, l: 78 };
+  const s = svgIn(box, W, H);
+  const band = (H - m.t - m.b) / PLAYERS.length;
+  const thick = Math.min(24, band - 12);
+  const ord = [css("--ord-1"), css("--ord-2"), css("--ord-3"), css("--ord-4")];
+  const labels = ["1st", "2nd", "3rd", "4th"];
+  PLAYERS.forEach((p, i) => {
+    const ps = stats.players[p];
+    const total = ps.placeCounts.reduce((a,b) => a+b, 0) || 1;
+    const y = m.t + i * band + (band - thick) / 2;
+    el("text", { x: m.l - 10, y: y + thick/2 + 4, "text-anchor": "end", "font-size": 12.5,
+      fill: css("--text-secondary") }, s).textContent = p;
+    let x = m.l;
+    const inner = W - m.l - m.r - 2 * 3;   /* three 2px surface gaps */
+    ps.placeCounts.forEach((c, k) => {
+      const len = c / total * inner;
+      if (len > 0) {
+        const isLastSeg = k === 3 || ps.placeCounts.slice(k+1).every(v => !v);
+        const r = isLastSeg ? 4 : 0;
+        const seg = isLastSeg
+          ? el("path", { d: barPathH(x, y, len, thick, r), fill: ord[k] }, s)
+          : el("rect", { x, y, width: len, height: thick, fill: ord[k] }, s);
+        seg.addEventListener("mousemove", ev => showTip(
+          `<div class="t-title">${p}</div><div class="t-row"><span class="sw" style="background:${ord[k]}"></span>${labels[k]} place: ${c} of ${total} games (${(c/total*100).toFixed(0)}%)</div>`, ev));
+        seg.addEventListener("mouseleave", hideTip);
+        x += len + 2;
+      }
+    });
+  });
+  legend("legend-mix", labels.map((l, i) => [l, ord[i]]));
+}
+
+function deckChart(stats) {
+  const box = document.getElementById("chart-decks");
+  const rows = stats.deckRows.filter(d => d.games >= 5).sort((a,b) => b.winRate - a.winRate);
+  const W = Math.max(320, box.clientWidth), rowH = 30;
+  const m = { t: 4, r: 56, b: 22, l: Math.min(250, W * 0.38) };
+  const H = m.t + rows.length * rowH + m.b;
+  const s = svgIn(box, W, H);
+  const maxV = Math.max(...rows.map(d => d.winRate), 0.5);
+  const px = v => v / maxV * (W - m.l - m.r);
+  [0, 0.25, 0.5].filter(v => v <= maxV).forEach(v => {
+    el("line", { x1: m.l + px(v), x2: m.l + px(v), y1: m.t, y2: H - m.b, stroke: css("--grid"), "stroke-width": 1 }, s);
+    el("text", { x: m.l + px(v), y: H - 6, "text-anchor": "middle", "font-size": 11,
+      fill: css("--text-muted") }, s).textContent = (v*100) + "%";
+  });
+  el("line", { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, stroke: css("--baseline"), "stroke-width": 1 }, s);
+  rows.forEach((d, i) => {
+    const y = m.t + i * rowH + (rowH - 20) / 2;
+    const name = d.name.length > 34 ? d.name.slice(0, 33) + "…" : d.name;
+    el("text", { x: m.l - 10, y: y + 14, "text-anchor": "end", "font-size": 12,
+      fill: css("--text-secondary") }, s).textContent = name;
+    el("path", { d: barPathH(m.l + 1, y, Math.max(px(d.winRate), 0.5), 20, 4), fill: playerColor(d.owner) }, s);
+    el("text", { x: m.l + 1 + px(d.winRate) + 6, y: y + 14, "font-size": 12,
+      fill: css("--text-secondary"), "font-variant-numeric": "tabular-nums" }, s)
+      .textContent = (d.winRate*100).toFixed(0) + "%";
+    const hit = el("rect", { x: 0, y: m.t + i * rowH, width: W, height: rowH, fill: "transparent" }, s);
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="t-title">${d.name}</div>` +
+      `<div class="t-row"><span class="sw" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${d.wins}-${d.games - d.wins} in ${d.games} games</div>` +
+      `<div class="t-row">Average placement: ${d.avg.toFixed(2)}</div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+  });
+  legend("legend-decks", PLAYERS.map(p => [p, playerColor(p)]));
+}
+
+// ---------- non-chart sections ----------
+function tiles(stats) {
+  document.getElementById("tiles").innerHTML = PLAYERS.map(p => {
+    const ps = stats.players[p];
+    const avg = ps.games ? (ps.placeSum / ps.games).toFixed(2) : "–";
+    const rate = ps.games ? (ps.wins / ps.games * 100).toFixed(0) : 0;
+    return `<div class="tile">
+      <div class="who"><span class="dot" style="background:${playerColor(p)}"></span>${p}</div>
+      <div class="big">${ps.wins} <small>wins · ${rate}%</small></div>
+      <div class="sub">avg placement ${avg} · ${ps.decksPlayed.size} decks · ${ps.games} games</div>
+    </div>`;
+  }).join("");
+}
+
+const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+function gallery(stats) {
+  const g = document.getElementById("gallery");
+  g.innerHTML = stats.deckRows.map(d => {
+    const rec = d.games ? `${d.wins}–${d.games - d.wins} · avg ${d.avg.toFixed(2)}` : "not played yet";
+    return `<div class="deck-card">
+      <img class="art" loading="lazy" src="images/decks/${slug(d.name)}.jpg" alt="${d.name}">
+      <div class="meta">
+        <div class="name">${d.name}</div>
+        <div class="rec"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${rec}</div>
+      </div>
+    </div>`;
+  }).join("");
+  g.querySelectorAll("img.art").forEach(img => {
+    img.addEventListener("error", () => {
+      const fb = document.createElement("div");
+      fb.className = "art-fallback";
+      fb.style.background = playerColor(stats.deckRows[[...g.children].indexOf(img.closest(".deck-card"))].owner);
+      fb.textContent = img.alt[0];
+      img.replaceWith(fb);
+    }, { once: true });
+  });
+}
+
+function deckTable(stats) {
+  const t = document.getElementById("deck-table");
+  const fmtPct = v => v == null ? "–" : (v*100).toFixed(0) + "%";
+  t.innerHTML = `<thead><tr><th>Deck</th><th>Owner</th><th class="num">Games</th><th class="num">Wins</th><th class="num">Win rate</th><th class="num">Avg placement</th><th class="num">Last places</th></tr></thead><tbody>` +
+    stats.deckRows.map(d => `<tr>
+      <td>${d.name}</td>
+      <td><span class="owner-cell"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner}</span></td>
+      <td class="num">${d.games}</td><td class="num">${d.wins}</td>
+      <td class="num">${fmtPct(d.winRate)}</td>
+      <td class="num">${d.avg == null ? "–" : d.avg.toFixed(2)}</td>
+      <td class="num">${d.lasts}</td></tr>`).join("") + "</tbody>";
+}
+
+// ---------- boot ----------
+let statsCache = null;
+function renderCharts() {
+  if (!statsCache) return;
+  raceChart(statsCache); winLastChart(statsCache); mixChart(statsCache); deckChart(statsCache);
+}
+async function main() {
+  try {
+    const [trackerText, ownersText] = await Promise.all([
+      fetch("data/2026_mtg_tracker.csv").then(r => { if (!r.ok) throw new Error("tracker " + r.status); return r.text(); }),
+      fetch("data/deck_owners.csv").then(r => { if (!r.ok) throw new Error("owners " + r.status); return r.text(); }),
+    ]);
+    statsCache = computeStats(parseCSV(trackerText), parseCSV(ownersText));
+    document.getElementById("subtitle").textContent =
+      `Commander pod tracking — ${statsCache.gameCount} games · ${statsCache.deckRows.length} decks`;
+    document.getElementById("status").hidden = true;
+    document.getElementById("app").hidden = false;
+    tiles(statsCache);
+    legend("legend-race", PLAYERS.map(p => [p, playerColor(p)]));
+    renderCharts();
+    gallery(statsCache);
+    deckTable(statsCache);
+  } catch (e) {
+    document.getElementById("status").textContent =
+      "Couldn't load the data files (" + e.message + "). If you opened this file directly, serve it over http (e.g. `python -m http.server`).";
+  }
+}
+let rT;
+addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(renderCharts, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderCharts(); gallery(statsCache); tiles(statsCache); deckTable(statsCache); legend("legend-race", PLAYERS.map(p => [p, playerColor(p)])); });
+main();
+</script>
+</body>
+</html>
