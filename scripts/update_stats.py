@@ -13,8 +13,12 @@ Rules (matching the original Google Sheet):
     played that game; everyone tied at that placement counts as last.
   - A blank placement means that player sat the game out.
   - Diversity score is total games played divided by unique decks played.
-  - Decks are sometimes borrowed; a deck's stats pool across pilots and its
-    Owner is whoever has piloted it most often.
+  - Decks are sometimes borrowed; a deck's stats pool across pilots. A
+    deck's Owner comes from data/deck_owners.csv (add new decks there);
+    a deck missing from that file falls back to its most frequent pilot
+    and prints a warning.
+  - Registered decks that have never been played still appear in
+    full_deck_list.csv with zero games.
 
 Usage:  python scripts/update_stats.py
 """
@@ -26,6 +30,7 @@ from collections import defaultdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 TRACKER = os.path.join(DATA, "2026_mtg_tracker.csv")
+OWNERS = os.path.join(DATA, "deck_owners.csv")
 
 PLAYERS = ["Mitchell", "Eric", "Hunter", "Harrison"]
 
@@ -51,6 +56,10 @@ def main():
     with open(TRACKER, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         games = list(reader)
+
+    with open(OWNERS, encoding="utf-8") as f:
+        owners = {r["Deck"].strip(): r["Owner"].strip()
+                  for r in csv.DictReader(f) if r["Deck"].strip()}
 
     # deck -> stats; a deck name is assumed unique to one owner
     deck_stats = defaultdict(lambda: {"pilots": defaultdict(int), "games": 0,
@@ -93,7 +102,11 @@ def main():
     deck_rows = []
     for deck, ds in deck_stats.items():
         avg = ds["placement_sum"] / ds["games"]
-        owner = max(ds["pilots"], key=ds["pilots"].get)
+        owner = owners.get(deck)
+        if owner is None:
+            owner = max(ds["pilots"], key=ds["pilots"].get)
+            print(f"WARNING: '{deck}' not in deck_owners.csv; "
+                  f"assuming owner {owner}")
         deck_rows.append([deck, owner, ds["games"], ds["wins"],
                           fmt(ds["wins"] / ds["games"]), fmt(avg),
                           ds["lasts"]])
@@ -105,8 +118,11 @@ def main():
               [r for r in deck_rows if r[2] >= 5])
 
     # --- full deck list grouped by owner, best win rate first ---
-    owner_rows = sorted(deck_rows,
-                        key=lambda r: (PLAYERS.index(r[1]), -float(r[4]), r[0]))
+    unplayed = [[deck, owner, 0, 0, "", "", 0]
+                for deck, owner in owners.items() if deck not in deck_stats]
+    owner_rows = sorted(
+        deck_rows + unplayed,
+        key=lambda r: (PLAYERS.index(r[1]), -float(r[4] or -1), r[0]))
     write_csv("full_deck_list.csv",
               ["Owner", "Deck", "Games Played", "Wins", "Win Rate",
                "Average Placement", "Last Place Count"],
