@@ -91,33 +91,18 @@
   #tooltip .t-row { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
   #tooltip .t-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
 
-  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  .deck-card {
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
-    overflow: hidden; display: flex; flex-direction: column;
-  }
-  .deck-card .art { aspect-ratio: 5 / 4; width: 100%; object-fit: cover; object-position: top; display: block; background: var(--grid); }
-  .deck-card .art-fallback {
-    aspect-ratio: 5 / 4; display: flex; align-items: center; justify-content: center;
-    font-size: 34px; font-weight: 700; color: var(--surface-1);
-  }
-  .deck-card .meta { padding: 9px 12px 11px; }
-  .deck-card .name { font-weight: 600; font-size: 13px; line-height: 1.3; }
-  .deck-card .rec { color: var(--text-muted); font-size: 12px; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
-  .deck-card .rec .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--grid); }
   th { color: var(--text-secondary); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .deck-cell { display: inline-flex; align-items: center; gap: 10px; }
+  .deck-cell { display: inline-flex; align-items: center; gap: 14px; font-weight: 600; }
   .thumb, .thumb-fallback {
-    width: 52px; height: 40px; border-radius: 6px; flex: none; background: var(--grid);
+    width: 120px; height: 92px; border-radius: 8px; flex: none; background: var(--grid);
     object-fit: cover; object-position: top; display: block;
   }
   .thumb-fallback {
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 700; color: var(--surface-1);
+    font-size: 28px; font-weight: 700; color: var(--surface-1);
   }
   .owner-cell { display: inline-flex; align-items: center; gap: 6px; }
   .owner-cell .dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -137,7 +122,7 @@
 
     <div class="card">
       <h2>Race for wins</h2>
-      <p class="sub">Cumulative wins by game (ties can crown more than one winner)</p>
+      <p class="sub">Cumulative wins by game</p>
       <div class="legend" id="legend-race"></div>
       <div class="chart" id="chart-race"></div>
     </div>
@@ -146,12 +131,6 @@
       <h2>Wins vs last places</h2>
       <p class="sub">Games won (right) against games finished last (left)</p>
       <div class="chart" id="chart-winlast"></div>
-    </div>
-
-    <div class="card">
-      <h2>The decks</h2>
-      <p class="sub">Every deck in the pod &mdash; add art in <code>images/decks/</code></p>
-      <div class="gallery" id="gallery"></div>
     </div>
 
     <div class="card">
@@ -391,9 +370,9 @@ function tiles(stats) {
     return `<div class="tile">
       <div class="who"><span class="dot" style="background:${playerColor(p)}"></span>${p}</div>
       <div class="big">${ps.wins} <small>wins</small></div>
-      <div class="sub">avg placement ${avg}</div>
-      <div class="sub">${ps.decksPlayed.size} unique decks played</div>
-      <div class="sub">${ps.games} games played</div>
+      <div class="sub">avg placement - ${avg}</div>
+      <div class="sub">unique decks played - ${ps.decksPlayed.size}</div>
+      <div class="sub">games played - ${ps.games}</div>
     </div>`;
   }).join("");
 }
@@ -417,21 +396,6 @@ function attachArtFallback(scope, fbClass) {
       }
     });
   });
-}
-
-function gallery(stats) {
-  const g = document.getElementById("gallery");
-  g.innerHTML = stats.deckRows.map(d => {
-    const rec = d.games ? `${d.wins}–${d.games - d.wins} · avg ${d.avg.toFixed(2)}` : "not played yet";
-    return `<div class="deck-card">
-      <img class="art" loading="lazy" src="images/decks/${slug(d.name)}.jpg" alt="${d.name}" data-color="${playerColor(d.owner)}">
-      <div class="meta">
-        <div class="name">${d.name}</div>
-        <div class="rec"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${rec}</div>
-      </div>
-    </div>`;
-  }).join("");
-  attachArtFallback(g, "art-fallback");
 }
 
 function renderDeckTable(id, rows) {
@@ -475,7 +439,6 @@ async function main() {
     tiles(statsCache);
     legend("legend-race", PLAYERS.map(p => [p, playerColor(p)]));
     renderCharts();
-    gallery(statsCache);
     deckTables(statsCache);
   } catch (e) {
     document.getElementById("status").textContent =
@@ -484,7 +447,7 @@ async function main() {
 }
 let rT;
 addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(renderCharts, 150); });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderCharts(); gallery(statsCache); tiles(statsCache); deckTables(statsCache); legend("legend-race", PLAYERS.map(p => [p, playerColor(p)])); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderCharts(); tiles(statsCache); deckTables(statsCache); legend("legend-race", PLAYERS.map(p => [p, playerColor(p)])); });
 main();
 </script>
 </body>
