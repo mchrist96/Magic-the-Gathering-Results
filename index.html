@@ -110,6 +110,15 @@
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); }
   th { color: var(--text-secondary); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .deck-cell { display: inline-flex; align-items: center; gap: 10px; }
+  .thumb, .thumb-fallback {
+    width: 52px; height: 40px; border-radius: 6px; flex: none; background: var(--grid);
+    object-fit: cover; object-position: top; display: block;
+  }
+  .thumb-fallback {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: var(--surface-1);
+  }
   .owner-cell { display: inline-flex; align-items: center; gap: 6px; }
   .owner-cell .dot { width: 8px; height: 8px; border-radius: 50%; }
   .scroll-x { overflow-x: auto; }
@@ -133,25 +142,10 @@
       <div class="chart" id="chart-race"></div>
     </div>
 
-    <div class="grid2">
-      <div class="card">
-        <h2>Wins vs last places</h2>
-        <p class="sub">Games won (right) against games finished last (left)</p>
-        <div class="chart" id="chart-winlast"></div>
-      </div>
-      <div class="card">
-        <h2>Placement mix</h2>
-        <p class="sub">Share of each player's games by finish</p>
-        <div class="legend" id="legend-mix"></div>
-        <div class="chart" id="chart-mix"></div>
-      </div>
-    </div>
-
     <div class="card">
-      <h2>Deck standings</h2>
-      <p class="sub">Win rate for decks with 5+ games, colored by owner</p>
-      <div class="legend" id="legend-decks"></div>
-      <div class="chart" id="chart-decks"></div>
+      <h2>Wins vs last places</h2>
+      <p class="sub">Games won (right) against games finished last (left)</p>
+      <div class="chart" id="chart-winlast"></div>
     </div>
 
     <div class="card">
@@ -164,6 +158,12 @@
       <h2>Full deck list</h2>
       <p class="sub">Every deck's record, sorted by average placement</p>
       <div class="scroll-x"><table id="deck-table"></table></div>
+    </div>
+
+    <div class="card">
+      <h2>Win rate leaderboard</h2>
+      <p class="sub">Every deck's record, sorted by win rate, then wins, then fewest games</p>
+      <div class="scroll-x"><table id="deck-table-winrate"></table></div>
     </div>
   </div>
 </div>
@@ -382,75 +382,6 @@ function winLastChart(stats) {
     .textContent = "wins →";
 }
 
-function mixChart(stats) {
-  const box = document.getElementById("chart-mix");
-  const W = Math.max(300, box.clientWidth), H = 190;
-  const m = { t: 8, r: 14, b: 8, l: 78 };
-  const s = svgIn(box, W, H);
-  const band = (H - m.t - m.b) / PLAYERS.length;
-  const thick = Math.min(24, band - 12);
-  const ord = [css("--ord-1"), css("--ord-2"), css("--ord-3"), css("--ord-4")];
-  const labels = ["1st", "2nd", "3rd", "4th"];
-  PLAYERS.forEach((p, i) => {
-    const ps = stats.players[p];
-    const total = ps.placeCounts.reduce((a,b) => a+b, 0) || 1;
-    const y = m.t + i * band + (band - thick) / 2;
-    el("text", { x: m.l - 10, y: y + thick/2 + 4, "text-anchor": "end", "font-size": 12.5,
-      fill: css("--text-secondary") }, s).textContent = p;
-    let x = m.l;
-    const inner = W - m.l - m.r - 2 * 3;   /* three 2px surface gaps */
-    ps.placeCounts.forEach((c, k) => {
-      const len = c / total * inner;
-      if (len > 0) {
-        const isLastSeg = k === 3 || ps.placeCounts.slice(k+1).every(v => !v);
-        const r = isLastSeg ? 4 : 0;
-        const seg = isLastSeg
-          ? el("path", { d: barPathH(x, y, len, thick, r), fill: ord[k] }, s)
-          : el("rect", { x, y, width: len, height: thick, fill: ord[k] }, s);
-        seg.addEventListener("mousemove", ev => showTip(
-          `<div class="t-title">${p}</div><div class="t-row"><span class="sw" style="background:${ord[k]}"></span>${labels[k]} place: ${c} of ${total} games (${(c/total*100).toFixed(0)}%)</div>`, ev));
-        seg.addEventListener("mouseleave", hideTip);
-        x += len + 2;
-      }
-    });
-  });
-  legend("legend-mix", labels.map((l, i) => [l, ord[i]]));
-}
-
-function deckChart(stats) {
-  const box = document.getElementById("chart-decks");
-  const rows = stats.deckRows.filter(d => d.games >= 5).sort((a,b) => b.winRate - a.winRate);
-  const W = Math.max(320, box.clientWidth), rowH = 30;
-  const m = { t: 4, r: 56, b: 22, l: Math.min(250, W * 0.38) };
-  const H = m.t + rows.length * rowH + m.b;
-  const s = svgIn(box, W, H);
-  const maxV = Math.max(...rows.map(d => d.winRate), 0.5);
-  const px = v => v / maxV * (W - m.l - m.r);
-  [0, 0.25, 0.5].filter(v => v <= maxV).forEach(v => {
-    el("line", { x1: m.l + px(v), x2: m.l + px(v), y1: m.t, y2: H - m.b, stroke: css("--grid"), "stroke-width": 1 }, s);
-    el("text", { x: m.l + px(v), y: H - 6, "text-anchor": "middle", "font-size": 11,
-      fill: css("--text-muted") }, s).textContent = (v*100) + "%";
-  });
-  el("line", { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, stroke: css("--baseline"), "stroke-width": 1 }, s);
-  rows.forEach((d, i) => {
-    const y = m.t + i * rowH + (rowH - 20) / 2;
-    const name = d.name.length > 34 ? d.name.slice(0, 33) + "…" : d.name;
-    el("text", { x: m.l - 10, y: y + 14, "text-anchor": "end", "font-size": 12,
-      fill: css("--text-secondary") }, s).textContent = name;
-    el("path", { d: barPathH(m.l + 1, y, Math.max(px(d.winRate), 0.5), 20, 4), fill: playerColor(d.owner) }, s);
-    el("text", { x: m.l + 1 + px(d.winRate) + 6, y: y + 14, "font-size": 12,
-      fill: css("--text-secondary"), "font-variant-numeric": "tabular-nums" }, s)
-      .textContent = (d.winRate*100).toFixed(0) + "%";
-    const hit = el("rect", { x: 0, y: m.t + i * rowH, width: W, height: rowH, fill: "transparent" }, s);
-    hit.addEventListener("mousemove", ev => showTip(
-      `<div class="t-title">${d.name}</div>` +
-      `<div class="t-row"><span class="sw" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${d.wins}-${d.games - d.wins} in ${d.games} games</div>` +
-      `<div class="t-row">Average placement: ${d.avg.toFixed(2)}</div>`, ev));
-    hit.addEventListener("mouseleave", hideTip);
-  });
-  legend("legend-decks", PLAYERS.map(p => [p, playerColor(p)]));
-}
-
 // ---------- non-chart sections ----------
 function tiles(stats) {
   document.getElementById("tiles").innerHTML = [...PLAYERS]
@@ -468,20 +399,10 @@ function tiles(stats) {
 }
 
 const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-function gallery(stats) {
-  const g = document.getElementById("gallery");
-  g.innerHTML = stats.deckRows.map(d => {
-    const rec = d.games ? `${d.wins}–${d.games - d.wins} · avg ${d.avg.toFixed(2)}` : "not played yet";
-    return `<div class="deck-card">
-      <img class="art" loading="lazy" src="images/decks/${slug(d.name)}.jpg" alt="${d.name}">
-      <div class="meta">
-        <div class="name">${d.name}</div>
-        <div class="rec"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${rec}</div>
-      </div>
-    </div>`;
-  }).join("");
+// retries .jpg → .png → .webp, then swaps in a colored initial placeholder
+function attachArtFallback(scope, fbClass) {
   const exts = ["jpg", "png", "webp"];
-  g.querySelectorAll("img.art").forEach(img => {
+  scope.querySelectorAll("img[data-color]").forEach(img => {
     let tried = 0;
     img.addEventListener("error", () => {
       tried++;
@@ -489,8 +410,8 @@ function gallery(stats) {
         img.src = img.src.replace(/\.\w+$/, "." + exts[tried]);
       } else {
         const fb = document.createElement("div");
-        fb.className = "art-fallback";
-        fb.style.background = playerColor(stats.deckRows[[...g.children].indexOf(img.closest(".deck-card"))].owner);
+        fb.className = fbClass;
+        fb.style.background = img.dataset.color;
         fb.textContent = img.alt[0];
         img.replaceWith(fb);
       }
@@ -498,24 +419,47 @@ function gallery(stats) {
   });
 }
 
-function deckTable(stats) {
-  const t = document.getElementById("deck-table");
+function gallery(stats) {
+  const g = document.getElementById("gallery");
+  g.innerHTML = stats.deckRows.map(d => {
+    const rec = d.games ? `${d.wins}–${d.games - d.wins} · avg ${d.avg.toFixed(2)}` : "not played yet";
+    return `<div class="deck-card">
+      <img class="art" loading="lazy" src="images/decks/${slug(d.name)}.jpg" alt="${d.name}" data-color="${playerColor(d.owner)}">
+      <div class="meta">
+        <div class="name">${d.name}</div>
+        <div class="rec"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner} · ${rec}</div>
+      </div>
+    </div>`;
+  }).join("");
+  attachArtFallback(g, "art-fallback");
+}
+
+function renderDeckTable(id, rows) {
+  const t = document.getElementById(id);
   const fmtPct = v => v == null ? "–" : (v*100).toFixed(0) + "%";
   t.innerHTML = `<thead><tr><th>Deck</th><th>Owner</th><th class="num">Games</th><th class="num">Wins</th><th class="num">Win rate</th><th class="num">Avg placement</th><th class="num">Last places</th></tr></thead><tbody>` +
-    stats.deckRows.map(d => `<tr>
-      <td>${d.name}</td>
+    rows.map(d => `<tr>
+      <td><span class="deck-cell"><img class="thumb" loading="lazy" src="images/decks/${slug(d.name)}.jpg" alt="${d.name}" data-color="${playerColor(d.owner)}">${d.name}</span></td>
       <td><span class="owner-cell"><span class="dot" style="background:${playerColor(d.owner)}"></span>${d.owner}</span></td>
       <td class="num">${d.games}</td><td class="num">${d.wins}</td>
       <td class="num">${fmtPct(d.winRate)}</td>
       <td class="num">${d.avg == null ? "–" : d.avg.toFixed(2)}</td>
       <td class="num">${d.lasts}</td></tr>`).join("") + "</tbody>";
+  attachArtFallback(t, "thumb-fallback");
+}
+
+function deckTables(stats) {
+  renderDeckTable("deck-table", stats.deckRows);
+  const byWinRate = [...stats.deckRows].sort((a, b) =>
+    (b.winRate ?? -1) - (a.winRate ?? -1) || b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name));
+  renderDeckTable("deck-table-winrate", byWinRate);
 }
 
 // ---------- boot ----------
 let statsCache = null;
 function renderCharts() {
   if (!statsCache) return;
-  raceChart(statsCache); winLastChart(statsCache); mixChart(statsCache); deckChart(statsCache);
+  raceChart(statsCache); winLastChart(statsCache);
 }
 async function main() {
   try {
@@ -532,7 +476,7 @@ async function main() {
     legend("legend-race", PLAYERS.map(p => [p, playerColor(p)]));
     renderCharts();
     gallery(statsCache);
-    deckTable(statsCache);
+    deckTables(statsCache);
   } catch (e) {
     document.getElementById("status").textContent =
       "Couldn't load the data files (" + e.message + "). If you opened this file directly, serve it over http (e.g. `python -m http.server`).";
@@ -540,7 +484,7 @@ async function main() {
 }
 let rT;
 addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(renderCharts, 150); });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderCharts(); gallery(statsCache); tiles(statsCache); deckTable(statsCache); legend("legend-race", PLAYERS.map(p => [p, playerColor(p)])); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderCharts(); gallery(statsCache); tiles(statsCache); deckTables(statsCache); legend("legend-race", PLAYERS.map(p => [p, playerColor(p)])); });
 main();
 </script>
 </body>
