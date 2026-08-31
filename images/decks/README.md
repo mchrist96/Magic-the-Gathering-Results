@@ -1,6 +1,6 @@
 # Deck images
 
-Drop one image per deck in this folder as `<slug>.jpg` (JPEG only — the site looks for the `.jpg` extension).
+Drop one image per deck in this folder as `<slug>.jpg`, `<slug>.png`, or `<slug>.webp` (the filenames below show `.jpg`, but any of the three extensions works).
 A wide/landscape crop works best; images display at roughly 5:4.
 Decks without an image show a colored placeholder automatically.
 

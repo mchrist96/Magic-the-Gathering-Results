@@ -478,14 +478,21 @@ function gallery(stats) {
       </div>
     </div>`;
   }).join("");
+  const exts = ["jpg", "png", "webp"];
   g.querySelectorAll("img.art").forEach(img => {
+    let tried = 0;
     img.addEventListener("error", () => {
-      const fb = document.createElement("div");
-      fb.className = "art-fallback";
-      fb.style.background = playerColor(stats.deckRows[[...g.children].indexOf(img.closest(".deck-card"))].owner);
-      fb.textContent = img.alt[0];
-      img.replaceWith(fb);
-    }, { once: true });
+      tried++;
+      if (tried < exts.length) {
+        img.src = img.src.replace(/\.\w+$/, "." + exts[tried]);
+      } else {
+        const fb = document.createElement("div");
+        fb.className = "art-fallback";
+        fb.style.background = playerColor(stats.deckRows[[...g.children].indexOf(img.closest(".deck-card"))].owner);
+        fb.textContent = img.alt[0];
+        img.replaceWith(fb);
+      }
+    });
   });
 }
 
