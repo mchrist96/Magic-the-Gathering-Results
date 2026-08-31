@@ -40,7 +40,7 @@ Expected filenames:
 | Hunter | Pantlaza, Sun-Favored (H) | `pantlaza-sun-favored-h.jpg` |
 | Hunter | The Wise Mothman | `the-wise-mothman.jpg` |
 | Hunter | Tidus, Yuna's Guardian | `tidus-yuna-s-guardian.jpg` |
-| Mitchell | Anikthea, Hand of Erebos | `anikthea-hand-of-erebos.jpg` |
+| Mitchell | Anikthea, Hand of Erebos | `anikthea-hand-of-erebos.png` |
 | Mitchell | Auntie Ool, Cursewretch | `auntie-ool-cursewretch.jpg` |
 | Mitchell | Braids, Arisen Nightmare | `braids-arisen-nightmare.jpg` |
 | Mitchell | Edgar Markov | `edgar-markov.jpg` |
