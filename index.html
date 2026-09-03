@@ -85,11 +85,14 @@
     background: var(--surface-1); color: var(--text-primary);
     border: 1px solid var(--border); border-radius: 8px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-    padding: 8px 11px; font-size: 12.5px; max-width: 300px;
+    padding: 8px 11px; font-size: 12.5px; max-width: 340px;
   }
   #tooltip .t-title { font-weight: 600; margin-bottom: 2px; }
-  #tooltip .t-row { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
-  #tooltip .t-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  #tooltip .t-row { display: flex; align-items: baseline; gap: 6px; color: var(--text-secondary); }
+  #tooltip .t-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }
+  #tooltip .t-cume { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  #tooltip .t-note { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--grid);
+    color: var(--text-muted); font-style: italic; }
 
   table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
   th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--grid); }
@@ -192,6 +195,7 @@ function computeStats(games, ownerRows) {
   PLAYERS.forEach(p => players[p] = { games: 0, wins: 0, lasts: 0, placeSum: 0,
     decksPlayed: new Set(), placeCounts: [0,0,0,0], winTimeline: [] });
   let gameCount = 0;
+  const gameDetails = [];
   for (const row of games) {
     const results = [];
     for (const p of PLAYERS) {
@@ -200,6 +204,10 @@ function computeStats(games, ownerRows) {
     }
     if (!results.length) continue;
     gameCount++;
+    gameDetails.push({
+      notes: (row.Notes || "").trim(),
+      results: Object.fromEntries(results.map(([p, pl, deck]) => [p, { place: pl, deck }])),
+    });
     const worst = Math.max(...results.map(r => r[1]));
     const winnersThisGame = new Set(results.filter(r => r[1] === 1).map(r => r[0]));
     for (const p of PLAYERS) {
@@ -231,10 +239,12 @@ function computeStats(games, ownerRows) {
   for (const [name, owner] of Object.entries(owners))
     if (!decks[name]) deckRows.push({ name, owner, games: 0, wins: 0, lasts: 0, winRate: null, avg: null });
   deckRows.sort((a,b) => (a.avg ?? 9) - (b.avg ?? 9) || b.games - a.games || a.name.localeCompare(b.name));
-  return { gameCount, players, deckRows };
+  return { gameCount, players, deckRows, gameDetails };
 }
 
 // ---------- tooltip ----------
+const ordinal = n => n + (["th","st","nd","rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : Math.min(n % 10, 4) % 4] || "th");
+const escapeHTML = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const tip = document.getElementById("tooltip");
 function showTip(html, ev) {
   tip.innerHTML = html; tip.style.display = "block";
@@ -323,8 +333,17 @@ function raceChart(stats) {
       dots[i].setAttribute("cx", px(g));
       dots[i].setAttribute("cy", py(stats.players[p].winTimeline[g-1]));
     });
-    showTip(`<div class="t-title">Game ${g}</div>` + PLAYERS.map(p =>
-      `<div class="t-row"><span class="sw" style="background:${playerColor(p)}"></span>${p}: ${stats.players[p].winTimeline[g-1]} wins</div>`).join(""), ev);
+    const detail = stats.gameDetails[g - 1];
+    const rows = PLAYERS.map(p => {
+      const r = detail.results[p];
+      const info = r
+        ? `${ordinal(r.place)}${r.deck ? " · " + escapeHTML(r.deck) : ""}`
+        : "sat out";
+      return `<div class="t-row"><span class="sw" style="background:${playerColor(p)}"></span>` +
+        `<span>${p}: ${info} <span class="t-cume">(${stats.players[p].winTimeline[g-1]}W)</span></span></div>`;
+    }).join("");
+    const note = detail.notes ? `<div class="t-note">${escapeHTML(detail.notes)}</div>` : "";
+    showTip(`<div class="t-title">Game ${g}</div>` + rows + note, ev);
   });
   cap.addEventListener("mouseleave", () => { hover.style.display = "none"; hideTip(); });
 }
